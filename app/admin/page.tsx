@@ -7,6 +7,7 @@ import './admin.css';
 export default function AdminPage() {
   const [htmlContent, setHtmlContent] = useState<string>('');
   const [isLoading, setIsLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const iframeRef = useRef<HTMLIFrameElement>(null);
 
   useEffect(() => {
@@ -16,19 +17,33 @@ export default function AdminPage() {
   const fetchSiteContent = async () => {
     try {
       setIsLoading(true);
-      const response = await fetch('/api/get-site');
+      // Add cache-busting timestamp to force fresh fetch
+      const response = await fetch(`/api/get-site?t=${Date.now()}`);
       const data = await response.json();
       setHtmlContent(data.htmlContent || '');
 
-      // Update iframe
+      // Force iframe reload with new content
       if (iframeRef.current && data.htmlContent) {
         const iframe = iframeRef.current;
+
+        // Method 1: Try to write to iframe document
         const doc = iframe.contentDocument || iframe.contentWindow?.document;
         if (doc) {
           doc.open();
           doc.write(data.htmlContent);
           doc.close();
         }
+
+        // Method 2: Force reload by setting src (fallback)
+        // Create a blob URL to ensure fresh content
+        const blob = new Blob([data.htmlContent], { type: 'text/html' });
+        const url = URL.createObjectURL(blob);
+        iframe.src = url;
+
+        // Clean up blob URL after iframe loads
+        iframe.onload = () => {
+          URL.revokeObjectURL(url);
+        };
       }
     } catch (error) {
       console.error('Error fetching site:', error);
@@ -38,7 +53,11 @@ export default function AdminPage() {
   };
 
   const handleSiteUpdate = () => {
-    fetchSiteContent();
+    setIsRefreshing(true);
+    fetchSiteContent().finally(() => {
+      // Show refreshing indicator briefly
+      setTimeout(() => setIsRefreshing(false), 1000);
+    });
   };
 
   return (
@@ -47,9 +66,20 @@ export default function AdminPage() {
       <div className="admin-preview">
         <div className="preview-header">
           <h2>🌐 Live Preview</h2>
-          <a href="/" target="_blank" className="view-live-btn">
-            View Live Site →
-          </a>
+          <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+            {isRefreshing && (
+              <span style={{
+                fontSize: '12px',
+                color: '#667eea',
+                animation: 'pulse 1s infinite'
+              }}>
+                🔄 Updating...
+              </span>
+            )}
+            <a href="/" target="_blank" className="view-live-btn">
+              View Live Site →
+            </a>
+          </div>
         </div>
         {isLoading ? (
           <div className="loading">
