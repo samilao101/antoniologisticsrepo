@@ -13,15 +13,54 @@ interface ChatPanelProps {
   onSiteUpdate: () => void;
 }
 
+type Language = 'en' | 'es';
+
+const translations = {
+  en: {
+    title: '🤖 AI Website Builder',
+    subtitle: 'Chat to create and modify your site',
+    clear: '🗑️ Clear',
+    send: 'Send',
+    placeholder: 'Describe what you want to create or change...',
+    welcome1: '👋 Hi! I\'m your AI website builder.',
+    welcome2: 'Tell me what kind of website you\'d like to create!',
+    example1: "Create a modern landing page for Antonio's Logistics, a professional freight and transportation company",
+    example2: 'Make it more professional with a blue and white color scheme',
+    example3: 'Add sections for Services, About Us, and Contact',
+    error: 'Error: ',
+    failedToSend: 'Failed to send message',
+  },
+  es: {
+    title: '🤖 Constructor de Sitios Web IA',
+    subtitle: 'Chatea para crear y modificar tu sitio',
+    clear: '🗑️ Limpiar',
+    send: 'Enviar',
+    placeholder: 'Describe lo que quieres crear o cambiar...',
+    welcome1: '👋 ¡Hola! Soy tu constructor de sitios web IA.',
+    welcome2: '¡Dime qué tipo de sitio web te gustaría crear!',
+    example1: 'Crea una página de inicio moderna para Antonio\'s Logistics, una empresa profesional de transporte y logística',
+    example2: 'Hazlo más profesional con un esquema de colores azul y blanco',
+    example3: 'Agrega secciones para Servicios, Acerca de y Contacto',
+    error: 'Error: ',
+    failedToSend: 'No se pudo enviar el mensaje',
+  },
+};
+
 export default function ChatPanel({ onSiteUpdate }: ChatPanelProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [sessionId] = useState(() => `session_${Date.now()}_${Math.random()}`);
+  const [language, setLanguage] = useState<Language>('en');
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     fetchConversation();
+    // Load language preference from localStorage
+    const savedLanguage = localStorage.getItem('chatLanguage') as Language;
+    if (savedLanguage === 'en' || savedLanguage === 'es') {
+      setLanguage(savedLanguage);
+    }
   }, []);
 
   useEffect(() => {
@@ -30,6 +69,12 @@ export default function ChatPanel({ onSiteUpdate }: ChatPanelProps) {
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
+
+  const toggleLanguage = () => {
+    const newLanguage = language === 'en' ? 'es' : 'en';
+    setLanguage(newLanguage);
+    localStorage.setItem('chatLanguage', newLanguage);
   };
 
   const fetchConversation = async () => {
@@ -63,6 +108,7 @@ export default function ChatPanel({ onSiteUpdate }: ChatPanelProps) {
         body: JSON.stringify({
           message: textToSend,
           sessionId,
+          language,
         }),
       });
 
@@ -85,9 +131,10 @@ export default function ChatPanel({ onSiteUpdate }: ChatPanelProps) {
       }
     } catch (error) {
       console.error('Error sending message:', error);
+      const t = translations[language];
       const errorMsg: Message = {
         role: 'assistant',
-        content: `Error: ${error instanceof Error ? error.message : 'Failed to send message'}`,
+        content: `${t.error}${error instanceof Error ? error.message : t.failedToSend}`,
         timestamp: new Date().toISOString(),
       };
       setMessages((prev) => [...prev, errorMsg]);
@@ -116,16 +163,25 @@ export default function ChatPanel({ onSiteUpdate }: ChatPanelProps) {
     }
   };
 
+  const t = translations[language];
+
   return (
     <div className="chat-panel">
       <div className="chat-header">
         <div className="header-content">
-          <h3>🤖 AI Website Builder</h3>
-          <p className="header-subtitle">Chat to create and modify your site</p>
+          <h3>{t.title}</h3>
+          <p className="header-subtitle">{t.subtitle}</p>
         </div>
         <div className="chat-actions">
-          <button onClick={clearConversation} className="clear-btn" title="Clear chat">
-            🗑️ Clear
+          <button
+            onClick={toggleLanguage}
+            className="language-btn"
+            title={language === 'en' ? 'Switch to Spanish' : 'Cambiar a inglés'}
+          >
+            {language === 'en' ? '🇪🇸 ES' : '🇺🇸 EN'}
+          </button>
+          <button onClick={clearConversation} className="clear-btn" title={language === 'en' ? 'Clear chat' : 'Limpiar chat'}>
+            {t.clear}
           </button>
         </div>
       </div>
@@ -133,26 +189,26 @@ export default function ChatPanel({ onSiteUpdate }: ChatPanelProps) {
       <div className="chat-messages">
         {messages.length === 0 && (
           <div className="welcome-message">
-            <p>👋 Hi! I'm your AI website builder.</p>
-            <p>Tell me what kind of website you'd like to create!</p>
+            <p>{t.welcome1}</p>
+            <p>{t.welcome2}</p>
             <div className="example-prompts">
               <button
-                onClick={() => sendMessage("Create a modern landing page for Antonio's Logistics, a professional freight and transportation company")}
+                onClick={() => sendMessage(t.example1)}
                 className="example-prompt"
               >
-                "Create a landing page for Antonio's Logistics"
+                "{t.example1}"
               </button>
               <button
-                onClick={() => sendMessage("Make it more professional with a blue and white color scheme")}
+                onClick={() => sendMessage(t.example2)}
                 className="example-prompt"
               >
-                "Make it more professional with blue and white colors"
+                "{t.example2}"
               </button>
               <button
-                onClick={() => sendMessage("Add sections for Services, About Us, and Contact")}
+                onClick={() => sendMessage(t.example3)}
                 className="example-prompt"
               >
-                "Add Services, About, and Contact sections"
+                "{t.example3}"
               </button>
             </div>
           </div>
@@ -191,7 +247,7 @@ export default function ChatPanel({ onSiteUpdate }: ChatPanelProps) {
           value={newMessage}
           onChange={(e) => setNewMessage(e.target.value)}
           onKeyPress={handleKeyPress}
-          placeholder="Describe what you want to create or change..."
+          placeholder={t.placeholder}
           rows={2}
           disabled={isLoading}
         />
@@ -200,7 +256,7 @@ export default function ChatPanel({ onSiteUpdate }: ChatPanelProps) {
           disabled={!newMessage.trim() || isLoading}
           className="send-button"
         >
-          Send
+          {t.send}
         </button>
       </div>
     </div>

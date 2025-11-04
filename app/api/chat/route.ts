@@ -16,10 +16,15 @@ interface Message {
 // Simplified agent - uses OpenAI function calling instead of Swarm
 async function createWebsiteBuilderResponse(
   messages: Message[],
-  currentHtml: string
+  currentHtml: string,
+  language: string = 'en'
 ): Promise<{ response: string; updatedHtml?: string }> {
 
-  const systemPrompt = `You are an expert website builder that creates responsive HTML websites.
+  const languageInstruction = language === 'es'
+    ? '\n\nIMPORTANT: Respond to the user in Spanish. All your messages must be in Spanish.'
+    : '';
+
+  const systemPrompt = `You are an expert website builder that creates responsive HTML websites.${languageInstruction}
 
 Current HTML content: ${currentHtml || 'No content yet - create a beautiful website!'}
 
@@ -143,14 +148,14 @@ IMPORTANT: Always create beautiful, professional designs. Pay attention to:
 
 export async function POST(request: NextRequest) {
   try {
-    const { message, sessionId = 'default' } = await request.json();
+    const { message, sessionId = 'default', language = 'en' } = await request.json();
 
     if (!message) {
       await logger.warn('Chat request without message', {}, '/api/chat');
       return NextResponse.json({ error: 'Message is required' }, { status: 400 });
     }
 
-    await logger.info('Processing chat message', { sessionId, messageLength: message.length }, '/api/chat');
+    await logger.info('Processing chat message', { sessionId, messageLength: message.length, language }, '/api/chat');
     console.log('Processing message:', message);
 
     // Get conversation history from KV
@@ -173,7 +178,8 @@ export async function POST(request: NextRequest) {
     // Get AI response
     const { response, updatedHtml } = await createWebsiteBuilderResponse(
       conversation,
-      currentHtml
+      currentHtml,
+      language
     );
 
     // Add assistant response

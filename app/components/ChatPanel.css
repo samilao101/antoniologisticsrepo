@@ -41,6 +41,25 @@
   gap: 10px;
 }
 
+.language-btn {
+  background: rgba(255, 255, 255, 0.15);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  color: white;
+  padding: 8px 16px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 0.85em;
+  font-weight: 500;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.language-btn:hover {
+  background: rgba(255, 255, 255, 0.25);
+  border-color: rgba(255, 255, 255, 0.4);
+  transform: scale(1.05);
+}
+
 .clear-btn {
   background: rgba(255, 255, 255, 0.15);
   border: 1px solid rgba(255, 255, 255, 0.3);
@@ -355,6 +374,11 @@
 
   .chat-header h3 {
     font-size: 1em;
+  }
+
+  .language-btn {
+    padding: 6px 12px;
+    font-size: 0.8em;
   }
 
   .clear-btn {
