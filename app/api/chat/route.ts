@@ -201,6 +201,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       response,
       htmlUpdated: !!updatedHtml,
+      htmlContent: updatedHtml || null, // Return the HTML directly
     });
   } catch (error) {
     await logger.error('Error in chat API', { error: String(error), stack: error instanceof Error ? error.stack : undefined }, '/api/chat');

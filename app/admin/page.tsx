@@ -52,12 +52,37 @@ export default function AdminPage() {
     }
   };
 
-  const handleSiteUpdate = () => {
+  const handleSiteUpdate = (newHtmlContent?: string) => {
     setIsRefreshing(true);
-    fetchSiteContent().finally(() => {
-      // Show refreshing indicator briefly
-      setTimeout(() => setIsRefreshing(false), 1000);
-    });
+
+    if (newHtmlContent) {
+      // Update immediately with provided HTML (no fetch needed)
+      setHtmlContent(newHtmlContent);
+
+      // Update iframe directly
+      if (iframeRef.current) {
+        const iframe = iframeRef.current;
+        const doc = iframe.contentDocument || iframe.contentWindow?.document;
+        if (doc) {
+          doc.open();
+          doc.write(newHtmlContent);
+          doc.close();
+        }
+
+        // Also update via blob URL for redundancy
+        const blob = new Blob([newHtmlContent], { type: 'text/html' });
+        const url = URL.createObjectURL(blob);
+        iframe.src = url;
+        iframe.onload = () => URL.revokeObjectURL(url);
+      }
+
+      setTimeout(() => setIsRefreshing(false), 500);
+    } else {
+      // Fall back to fetching from API
+      fetchSiteContent().finally(() => {
+        setTimeout(() => setIsRefreshing(false), 1000);
+      });
+    }
   };
 
   return (

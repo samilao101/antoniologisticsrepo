@@ -10,7 +10,7 @@ interface Message {
 }
 
 interface ChatPanelProps {
-  onSiteUpdate: () => void;
+  onSiteUpdate: (htmlContent?: string) => void;
 }
 
 export default function ChatPanel({ onSiteUpdate }: ChatPanelProps) {
@@ -81,7 +81,13 @@ export default function ChatPanel({ onSiteUpdate }: ChatPanelProps) {
 
       // Refresh site if HTML was updated
       if (data.htmlUpdated) {
-        setTimeout(() => onSiteUpdate(), 500);
+        // If we got the HTML in the response, update immediately
+        // Otherwise fall back to fetching (with small delay for KV propagation)
+        if (data.htmlContent) {
+          onSiteUpdate(data.htmlContent); // Immediate update with returned HTML
+        } else {
+          setTimeout(() => onSiteUpdate(), 1000); // Increased to 1 second for KV propagation
+        }
       }
     } catch (error) {
       console.error('Error sending message:', error);
