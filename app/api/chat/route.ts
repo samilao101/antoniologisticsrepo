@@ -3,6 +3,9 @@ import { kv } from '@vercel/kv';
 import OpenAI from 'openai';
 import { logger } from '@/lib/logger';
 
+// Ensure this route is always dynamic and not cached
+export const dynamic = 'force-dynamic';
+
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });

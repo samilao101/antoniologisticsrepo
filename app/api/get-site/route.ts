@@ -2,6 +2,10 @@ import { NextResponse } from 'next/server';
 import { kv } from '@vercel/kv';
 import { logger } from '@/lib/logger';
 
+// Disable caching for this route - always fetch fresh data from KV
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 export async function GET() {
   try {
     await logger.debug('Fetching site data', {}, '/api/get-site');

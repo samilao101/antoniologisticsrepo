@@ -14,7 +14,10 @@ export default function Home() {
   const fetchSiteContent = async () => {
     try {
       setIsLoading(true);
-      const response = await fetch('/api/get-site');
+      // Add cache-busting timestamp to ensure fresh data
+      const response = await fetch(`/api/get-site?t=${Date.now()}`, {
+        cache: 'no-store',
+      });
       const data = await response.json();
       setHtmlContent(data.htmlContent || '');
     } catch (error) {
