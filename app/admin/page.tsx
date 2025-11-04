@@ -9,10 +9,35 @@ export default function AdminPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const iframeRef = useRef<HTMLIFrameElement>(null);
+  const currentBlobUrlRef = useRef<string | null>(null);
 
   useEffect(() => {
     fetchSiteContent();
   }, []);
+
+  // Helper function to update iframe content using blob URL
+  const updateIframeContent = (html: string) => {
+    if (!iframeRef.current) return;
+
+    const iframe = iframeRef.current;
+
+    // Clean up previous blob URL if it exists
+    if (currentBlobUrlRef.current) {
+      URL.revokeObjectURL(currentBlobUrlRef.current);
+      currentBlobUrlRef.current = null;
+    }
+
+    // Create new blob URL with the HTML content
+    const blob = new Blob([html], { type: 'text/html; charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    currentBlobUrlRef.current = url;
+
+    // Update iframe src with the blob URL
+    iframe.src = url;
+
+    // Note: We don't revoke immediately on onload because the iframe needs the blob
+    // The URL will be cleaned up when we create the next blob or component unmounts
+  };
 
   const fetchSiteContent = async () => {
     try {
@@ -20,30 +45,13 @@ export default function AdminPage() {
       // Add cache-busting timestamp to force fresh fetch
       const response = await fetch(`/api/get-site?t=${Date.now()}`);
       const data = await response.json();
-      setHtmlContent(data.htmlContent || '');
+      const html = data.htmlContent || '';
 
-      // Force iframe reload with new content
-      if (iframeRef.current && data.htmlContent) {
-        const iframe = iframeRef.current;
+      setHtmlContent(html);
 
-        // Method 1: Try to write to iframe document
-        const doc = iframe.contentDocument || iframe.contentWindow?.document;
-        if (doc) {
-          doc.open();
-          doc.write(data.htmlContent);
-          doc.close();
-        }
-
-        // Method 2: Force reload by setting src (fallback)
-        // Create a blob URL to ensure fresh content
-        const blob = new Blob([data.htmlContent], { type: 'text/html' });
-        const url = URL.createObjectURL(blob);
-        iframe.src = url;
-
-        // Clean up blob URL after iframe loads
-        iframe.onload = () => {
-          URL.revokeObjectURL(url);
-        };
+      // Update iframe with fetched content
+      if (html) {
+        updateIframeContent(html);
       }
     } catch (error) {
       console.error('Error fetching site:', error);
@@ -58,24 +66,7 @@ export default function AdminPage() {
     if (newHtmlContent) {
       // Update immediately with provided HTML (no fetch needed)
       setHtmlContent(newHtmlContent);
-
-      // Update iframe directly
-      if (iframeRef.current) {
-        const iframe = iframeRef.current;
-        const doc = iframe.contentDocument || iframe.contentWindow?.document;
-        if (doc) {
-          doc.open();
-          doc.write(newHtmlContent);
-          doc.close();
-        }
-
-        // Also update via blob URL for redundancy
-        const blob = new Blob([newHtmlContent], { type: 'text/html' });
-        const url = URL.createObjectURL(blob);
-        iframe.src = url;
-        iframe.onload = () => URL.revokeObjectURL(url);
-      }
-
+      updateIframeContent(newHtmlContent);
       setTimeout(() => setIsRefreshing(false), 500);
     } else {
       // Fall back to fetching from API
@@ -84,6 +75,15 @@ export default function AdminPage() {
       });
     }
   };
+
+  // Cleanup blob URLs on unmount
+  useEffect(() => {
+    return () => {
+      if (currentBlobUrlRef.current) {
+        URL.revokeObjectURL(currentBlobUrlRef.current);
+      }
+    };
+  }, []);
 
   return (
     <div className="admin-container">
@@ -117,6 +117,7 @@ export default function AdminPage() {
             title="Site Preview"
             className="preview-iframe"
             sandbox="allow-scripts allow-same-origin"
+            src="about:blank"
           />
         ) : (
           <div className="empty-preview">
