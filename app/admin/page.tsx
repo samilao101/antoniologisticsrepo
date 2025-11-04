@@ -2,9 +2,12 @@
 
 import { useState, useEffect, useRef } from 'react';
 import ChatPanel from '../components/ChatPanel';
+import PinEntry from '../components/PinEntry';
 import './admin.css';
 
 export default function AdminPage() {
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isCheckingAuth, setIsCheckingAuth] = useState(true);
   const [htmlContent, setHtmlContent] = useState<string>('');
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -12,7 +15,14 @@ export default function AdminPage() {
   const currentBlobUrlRef = useRef<string | null>(null);
 
   useEffect(() => {
-    fetchSiteContent();
+    // Check if already authenticated in this session
+    const authenticated = sessionStorage.getItem('admin_authenticated');
+    setIsAuthenticated(authenticated === 'true');
+    setIsCheckingAuth(false);
+
+    if (authenticated === 'true') {
+      fetchSiteContent();
+    }
   }, []);
 
   // Helper function to update iframe content using blob URL
@@ -84,6 +94,20 @@ export default function AdminPage() {
       }
     };
   }, []);
+
+  const handlePinSuccess = () => {
+    setIsAuthenticated(true);
+    fetchSiteContent();
+  };
+
+  // Show PIN entry if not authenticated
+  if (isCheckingAuth) {
+    return null; // Or a loading spinner
+  }
+
+  if (!isAuthenticated) {
+    return <PinEntry onSuccess={handlePinSuccess} />;
+  }
 
   return (
     <div className="admin-container">
