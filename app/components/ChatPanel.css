@@ -39,6 +39,7 @@
 .chat-actions {
   display: flex;
   gap: 10px;
+  align-items: center;
 }
 
 .clear-btn {
@@ -52,6 +53,7 @@
   font-weight: 500;
   transition: all 0.2s ease;
   white-space: nowrap;
+  height: fit-content;
 }
 
 .clear-btn:hover {
