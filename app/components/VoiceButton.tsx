@@ -142,10 +142,12 @@ export default function VoiceButton({
   // Connect to Realtime API
   const connect = useCallback(async () => {
     try {
+      console.log('[Voice] Initiating connection...', { sessionId });
       setConnectionState('connecting');
       setError(null);
 
       // Get ephemeral token
+      console.log('[Voice] Requesting ephemeral token...');
       const tokenResponse = await fetch('/api/realtime-token', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -153,10 +155,13 @@ export default function VoiceButton({
       });
 
       if (!tokenResponse.ok) {
+        const error = await tokenResponse.text();
+        console.error('[Voice] Failed to get token:', error);
         throw new Error('Failed to get realtime token');
       }
 
       const { token } = await tokenResponse.json();
+      console.log('[Voice] Ephemeral token received, connecting to WebSocket...');
 
       // Connect to OpenAI Realtime API using ephemeral token
       const ws = new WebSocket(
@@ -167,12 +172,13 @@ export default function VoiceButton({
       wsRef.current = ws;
 
       ws.onopen = () => {
-        console.log('Connected to Realtime API');
+        console.log('[Voice] Connected to Realtime API');
+        console.log('[Voice] Configuring session...');
         setConnectionState('connected');
         setVoiceState('listening');
 
         // Send session configuration
-        ws.send(JSON.stringify({
+        const sessionConfig = {
           type: 'session.update',
           session: {
             modalities: ['text', 'audio'],
@@ -218,32 +224,40 @@ Be conversational and friendly. Acknowledge requests quickly and execute changes
             ],
             tool_choice: 'auto',
           },
-        }));
+        };
+
+        console.log('[Voice] Sending session config:', sessionConfig);
+        ws.send(JSON.stringify(sessionConfig));
 
         // Start microphone
+        console.log('[Voice] Starting microphone...');
         startMicrophone();
       };
 
       ws.onmessage = async (event) => {
         const message = JSON.parse(event.data);
 
-        console.log('Received:', message.type);
+        // Log all messages for debugging
+        console.log('[Voice] Received event:', message.type, message);
 
         switch (message.type) {
           case 'session.created':
           case 'session.updated':
-            console.log('Session ready');
+            console.log('[Voice] Session ready:', message);
             break;
 
           case 'input_audio_buffer.speech_started':
+            console.log('[Voice] User started speaking');
             setVoiceState('listening');
             break;
 
           case 'input_audio_buffer.speech_stopped':
+            console.log('[Voice] User stopped speaking');
             setVoiceState('thinking');
             break;
 
           case 'conversation.item.input_audio_transcription.completed':
+            console.log('[Voice] User transcript:', message.transcript);
             if (onTranscript && message.transcript) {
               onTranscript(message.transcript, true);
             }
@@ -270,14 +284,39 @@ Be conversational and friendly. Acknowledge requests quickly and execute changes
             }
             break;
 
+          case 'response.audio_transcript.done':
+            console.log('[Voice] AI transcript complete:', message.transcript);
+            break;
+
+          case 'response.function_call_arguments.delta':
+            console.log('[Voice] Function call arguments building...');
+            break;
+
           case 'response.function_call_arguments.done':
+            console.log('[Voice] Function call received:', message);
             // Execute function call
             if (message.name === 'save_html') {
               try {
                 const args = JSON.parse(message.arguments);
-                console.log('Executing save_html:', args.description);
+                console.log('[Voice] Executing save_html:', {
+                  description: args.description,
+                  htmlLength: args.html_content?.length,
+                });
 
-                // Update site immediately
+                // Save to KV storage via API
+                const saveResponse = await fetch('/api/save-html-voice', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({
+                    htmlContent: args.html_content,
+                    description: args.description,
+                  }),
+                });
+
+                const saveResult = await saveResponse.json();
+                console.log('[Voice] Save result:', saveResult);
+
+                // Update site immediately in frontend
                 onSiteUpdate(args.html_content);
 
                 // Send function result back to AI
@@ -286,43 +325,144 @@ Be conversational and friendly. Acknowledge requests quickly and execute changes
                   item: {
                     type: 'function_call_output',
                     call_id: message.call_id,
-                    output: JSON.stringify({ success: true, message: 'HTML saved successfully' }),
+                    output: JSON.stringify({
+                      success: true,
+                      message: 'HTML saved successfully',
+                      htmlLength: args.html_content?.length
+                    }),
                   },
                 }));
 
                 // Trigger response generation
                 ws.send(JSON.stringify({ type: 'response.create' }));
+
+                console.log('[Voice] Function execution completed successfully');
               } catch (err) {
-                console.error('Function execution error:', err);
+                console.error('[Voice] Function execution error:', err);
+                // Send error back to AI
+                ws.send(JSON.stringify({
+                  type: 'conversation.item.create',
+                  item: {
+                    type: 'function_call_output',
+                    call_id: message.call_id,
+                    output: JSON.stringify({
+                      success: false,
+                      error: String(err)
+                    }),
+                  },
+                }));
+              }
+            }
+            break;
+
+          case 'response.output_item.added':
+            console.log('[Voice] Output item added:', message.item);
+            break;
+
+          case 'response.output_item.done':
+            console.log('[Voice] Output item done:', message.item);
+            // Check if this is a function call
+            if (message.item?.type === 'function_call') {
+              console.log('[Voice] Function call detected in output item:', message.item);
+              const functionCall = message.item;
+              if (functionCall.name === 'save_html') {
+                try {
+                  const args = JSON.parse(functionCall.arguments);
+                  console.log('[Voice] Executing save_html from output_item:', {
+                    description: args.description,
+                    htmlLength: args.html_content?.length,
+                  });
+
+                  // Save to KV storage via API
+                  const saveResponse = await fetch('/api/save-html-voice', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                      htmlContent: args.html_content,
+                      description: args.description,
+                    }),
+                  });
+
+                  const saveResult = await saveResponse.json();
+                  console.log('[Voice] Save result:', saveResult);
+
+                  // Update site immediately in frontend
+                  onSiteUpdate(args.html_content);
+
+                  // Send function result back to AI
+                  ws.send(JSON.stringify({
+                    type: 'conversation.item.create',
+                    item: {
+                      type: 'function_call_output',
+                      call_id: functionCall.call_id,
+                      output: JSON.stringify({
+                        success: true,
+                        message: 'HTML saved successfully',
+                        htmlLength: args.html_content?.length
+                      }),
+                    },
+                  }));
+
+                  // Trigger response generation
+                  ws.send(JSON.stringify({ type: 'response.create' }));
+
+                  console.log('[Voice] Function execution completed successfully');
+                } catch (err) {
+                  console.error('[Voice] Function execution error:', err);
+                  // Send error back to AI
+                  ws.send(JSON.stringify({
+                    type: 'conversation.item.create',
+                    item: {
+                      type: 'function_call_output',
+                      call_id: functionCall.call_id,
+                      output: JSON.stringify({
+                        success: false,
+                        error: String(err)
+                      }),
+                    },
+                  }));
+                }
               }
             }
             break;
 
           case 'response.done':
+            console.log('[Voice] Response complete');
             setVoiceState('listening');
             break;
 
           case 'error':
-            console.error('Realtime API error:', message);
+            console.error('[Voice] Realtime API error:', message);
             setError(message.error?.message || 'An error occurred');
+            break;
+
+          default:
+            // Log unhandled message types for debugging
+            if (message.type) {
+              console.log('[Voice] Unhandled message type:', message.type);
+            }
             break;
         }
       };
 
       ws.onerror = (error) => {
-        console.error('WebSocket error:', error);
+        console.error('[Voice] WebSocket error:', error);
         setError('Connection error occurred');
       };
 
-      ws.onclose = () => {
-        console.log('Disconnected from Realtime API');
+      ws.onclose = (event) => {
+        console.log('[Voice] Disconnected from Realtime API', {
+          code: event.code,
+          reason: event.reason,
+          wasClean: event.wasClean,
+        });
         setConnectionState('disconnected');
         setVoiceState('idle');
         stopMicrophone();
       };
 
     } catch (err) {
-      console.error('Connection error:', err);
+      console.error('[Voice] Connection error:', err);
       setError(err instanceof Error ? err.message : 'Failed to connect');
       setConnectionState('disconnected');
     }

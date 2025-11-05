@@ -203,11 +203,13 @@ Estimate: ~$0.06 per minute of conversation (as of 2024)
 - Check browser permissions
 - Ensure HTTPS connection
 - Try different browser
+- Look for `[Voice] Starting microphone...` in console
 
 ### Connection fails
 - Check OPENAI_API_KEY environment variable
 - Verify network connectivity
 - Check browser console for errors
+- Look for `[Voice] Connected to Realtime API` message
 
 ### Audio playback issues
 - Check browser audio permissions
@@ -215,9 +217,52 @@ Estimate: ~$0.06 per minute of conversation (as of 2024)
 - Try adjusting system volume
 
 ### Site not updating
-- Check browser console for function execution errors
-- Verify KV storage is accessible
-- Check network tab for API responses
+The most common issues are:
+
+1. **Function not being called**: Check browser console for:
+   - `[Voice] Function call received:` - Shows AI wants to make changes
+   - `[Voice] Executing save_html:` - Shows function is executing
+   - Look for the event type in logs (might be `response.function_call_arguments.done` or `response.output_item.done`)
+
+2. **KV storage issues**: Check for:
+   - `[Voice] Save result:` - Shows if save to KV succeeded
+   - Network tab for `/api/save-html-voice` request
+   - Verify KV storage is accessible
+
+3. **HTML not applying**: Check for:
+   - Console errors when updating the DOM
+   - Verify `onSiteUpdate` is being called in ChatPanel
+
+### Debugging Steps
+
+1. **Open browser console** (F12) and look for `[Voice]` prefixed logs
+2. **Check the logs API** at `/admin` → Logs section
+3. **Verify the flow**:
+   ```
+   [Voice] Initiating connection...
+   [Voice] Requesting ephemeral token...
+   [Voice] Ephemeral token received, connecting to WebSocket...
+   [Voice] Connected to Realtime API
+   [Voice] Sending session config:
+   [Voice] Session ready:
+   [Voice] Starting microphone...
+   [Voice] User started speaking
+   [Voice] User stopped speaking
+   [Voice] User transcript: <what you said>
+   [Voice] Function call received: <details>
+   [Voice] Executing save_html: <details>
+   [Voice] Save result: <details>
+   [Voice] Function execution completed successfully
+   ```
+
+4. **If function calls aren't happening**:
+   - AI might not understand the request
+   - Try being more explicit: "Please update the website by making the header blue"
+   - Check if AI is calling the function: look for `response.output_item.done` with `type: 'function_call'`
+
+5. **Check server logs**:
+   - `/api/logs` endpoint shows server-side logging
+   - Look for voice-related entries: `realtime-token`, `save-html-voice`
 
 ## Resources
 
