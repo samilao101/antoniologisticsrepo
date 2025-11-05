@@ -8,6 +8,29 @@ export default function Home() {
   const [isLoading, setIsLoading] = useState(true);
   const [isUpdating, setIsUpdating] = useState(false);
   const lastContentRef = useRef<string>('');
+  const iframeRef = useRef<HTMLIFrameElement>(null);
+  const currentBlobUrlRef = useRef<string | null>(null);
+
+  // Update iframe content with blob URL (like admin preview)
+  const updateIframeContent = (html: string) => {
+    if (!iframeRef.current) return;
+
+    const iframe = iframeRef.current;
+
+    // Clean up previous blob URL if it exists
+    if (currentBlobUrlRef.current) {
+      URL.revokeObjectURL(currentBlobUrlRef.current);
+      currentBlobUrlRef.current = null;
+    }
+
+    // Create new blob URL with the HTML content
+    const blob = new Blob([html], { type: 'text/html; charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    currentBlobUrlRef.current = url;
+
+    // Update iframe src with the blob URL
+    iframe.src = url;
+  };
 
   useEffect(() => {
     fetchSiteContent();
@@ -17,7 +40,13 @@ export default function Home() {
       fetchSiteContent(true); // true = silent poll
     }, 5000);
 
-    return () => clearInterval(pollInterval);
+    return () => {
+      clearInterval(pollInterval);
+      // Clean up blob URL on unmount
+      if (currentBlobUrlRef.current) {
+        URL.revokeObjectURL(currentBlobUrlRef.current);
+      }
+    };
   }, []);
 
   const fetchSiteContent = async (silent = false) => {
@@ -37,12 +66,14 @@ export default function Home() {
       if (silent && lastContentRef.current && newContent !== lastContentRef.current) {
         setIsUpdating(true);
         setHtmlContent(newContent);
+        updateIframeContent(newContent);
         lastContentRef.current = newContent;
 
         // Hide update notification after 2 seconds
         setTimeout(() => setIsUpdating(false), 2000);
       } else if (!silent) {
         setHtmlContent(newContent);
+        updateIframeContent(newContent);
         lastContentRef.current = newContent;
       } else {
         // Content hasn't changed, just update the ref
@@ -57,7 +88,7 @@ export default function Home() {
     }
   };
 
-  // If there's HTML content, render it directly (not in iframe)
+  // If there's HTML content, render it in an isolated iframe
   if (!isLoading && htmlContent) {
     return (
       <>
@@ -80,7 +111,17 @@ export default function Home() {
             🔄 Site updated - refreshing...
           </div>
         )}
-        <div dangerouslySetInnerHTML={{ __html: htmlContent }} />
+        <iframe
+          ref={iframeRef}
+          sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
+          style={{
+            width: '100%',
+            height: '100vh',
+            border: 'none',
+            display: 'block',
+          }}
+          title="Public Site"
+        />
       </>
     );
   }
