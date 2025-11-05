@@ -91,9 +91,9 @@ IMPORTANT: Always create beautiful, professional designs. Pay attention to:
     ];
 
     // Call OpenAI with function calling
-    await logger.info('Calling OpenAI API', { model: 'gpt-5' }, '/api/chat');
+    await logger.info('Calling OpenAI API', { model: 'gpt-4-turbo' }, '/api/chat');
     const response = await openai.chat.completions.create({
-      model: 'gpt-5',
+      model: 'gpt-4-turbo',
       messages: apiMessages,
       tools: tools,
       tool_choice: 'auto',
@@ -123,7 +123,7 @@ IMPORTANT: Always create beautiful, professional designs. Pay attention to:
         ];
 
         const followUpResponse = await openai.chat.completions.create({
-          model: 'gpt-5',
+          model: 'gpt-4-turbo',
           messages: followUpMessages,
         });
 
