@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+import VoiceButton from './VoiceButton';
 import './ChatPanel.css';
 
 interface Message {
@@ -18,10 +19,12 @@ export default function ChatPanel({ onSiteUpdate }: ChatPanelProps) {
   const [newMessage, setNewMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [sessionId] = useState(() => `session_${Date.now()}_${Math.random()}`);
+  const [currentHtml, setCurrentHtml] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     fetchConversation();
+    fetchCurrentHtml();
   }, []);
 
   useEffect(() => {
@@ -40,6 +43,47 @@ export default function ChatPanel({ onSiteUpdate }: ChatPanelProps) {
     } catch (error) {
       console.error('Error fetching conversation:', error);
     }
+  };
+
+  const fetchCurrentHtml = async () => {
+    try {
+      const response = await fetch('/api/get-site');
+      const data = await response.json();
+      setCurrentHtml(data.htmlContent || '');
+    } catch (error) {
+      console.error('Error fetching current HTML:', error);
+    }
+  };
+
+  const handleVoiceTranscript = (text: string, isUser: boolean) => {
+    // Add transcripts to messages in real-time
+    const transcriptMsg: Message = {
+      role: isUser ? 'user' : 'assistant',
+      content: text,
+      timestamp: new Date().toISOString(),
+    };
+    setMessages((prev) => {
+      // Check if last message is from same role and recent (within 2 seconds)
+      const lastMsg = prev[prev.length - 1];
+      if (lastMsg && lastMsg.role === transcriptMsg.role) {
+        const timeDiff = new Date(transcriptMsg.timestamp).getTime() - new Date(lastMsg.timestamp).getTime();
+        if (timeDiff < 2000) {
+          // Append to existing message
+          return [
+            ...prev.slice(0, -1),
+            { ...lastMsg, content: lastMsg.content + ' ' + text },
+          ];
+        }
+      }
+      return [...prev, transcriptMsg];
+    });
+  };
+
+  const handleVoiceSiteUpdate = (htmlContent?: string) => {
+    if (htmlContent) {
+      setCurrentHtml(htmlContent);
+    }
+    onSiteUpdate(htmlContent);
   };
 
   const sendMessage = async (messageText?: string) => {
@@ -127,9 +171,15 @@ export default function ChatPanel({ onSiteUpdate }: ChatPanelProps) {
       <div className="chat-header">
         <div className="header-content">
           <h3>🤖 AI Website Builder</h3>
-          <p className="header-subtitle">Chat to create and modify your site</p>
+          <p className="header-subtitle">Chat or speak to create and modify your site</p>
         </div>
         <div className="chat-actions">
+          <VoiceButton
+            sessionId={sessionId}
+            currentHtml={currentHtml}
+            onSiteUpdate={handleVoiceSiteUpdate}
+            onTranscript={handleVoiceTranscript}
+          />
           <button onClick={clearConversation} className="clear-btn" title="Clear chat">
             🗑️ Clear
           </button>

@@ -9,11 +9,13 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@types/ws": "^8.18.1",
+    "@vercel/kv": "^1.0.1",
     "next": "14.0.4",
+    "openai": "^4.20.1",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
-    "@vercel/kv": "^1.0.1",
-    "openai": "^4.20.1"
+    "ws": "^8.18.3"
   },
   "devDependencies": {
     "@types/node": "^20.10.5",
