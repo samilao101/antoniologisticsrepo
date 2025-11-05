@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import './page.css';
 
 export default function Home() {
@@ -12,7 +12,7 @@ export default function Home() {
   const currentBlobUrlRef = useRef<string | null>(null);
 
   // Update iframe content with blob URL (like admin preview)
-  const updateIframeContent = (html: string) => {
+  const updateIframeContent = useCallback((html: string) => {
     if (!iframeRef.current) return;
 
     const iframe = iframeRef.current;
@@ -30,7 +30,14 @@ export default function Home() {
 
     // Update iframe src with the blob URL
     iframe.src = url;
-  };
+  }, []);
+
+  // Update iframe when content changes and iframe is ready
+  useEffect(() => {
+    if (htmlContent && iframeRef.current) {
+      updateIframeContent(htmlContent);
+    }
+  }, [htmlContent, updateIframeContent]);
 
   useEffect(() => {
     fetchSiteContent();
@@ -66,14 +73,12 @@ export default function Home() {
       if (silent && lastContentRef.current && newContent !== lastContentRef.current) {
         setIsUpdating(true);
         setHtmlContent(newContent);
-        updateIframeContent(newContent);
         lastContentRef.current = newContent;
 
         // Hide update notification after 2 seconds
         setTimeout(() => setIsUpdating(false), 2000);
       } else if (!silent) {
         setHtmlContent(newContent);
-        updateIframeContent(newContent);
         lastContentRef.current = newContent;
       } else {
         // Content hasn't changed, just update the ref
