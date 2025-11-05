@@ -8,9 +8,28 @@ export interface LogEntry {
   endpoint?: string;
 }
 
+// Store for SSE clients
+type LogCallback = (log: LogEntry) => void;
+const logSubscribers = new Set<LogCallback>();
+
 class Logger {
   private maxLogs = 100; // Keep last 100 logs
   private logKey = 'system:logs';
+
+  subscribe(callback: LogCallback) {
+    logSubscribers.add(callback);
+    return () => logSubscribers.delete(callback);
+  }
+
+  private notifySubscribers(entry: LogEntry) {
+    logSubscribers.forEach(callback => {
+      try {
+        callback(entry);
+      } catch (error) {
+        console.error('Error notifying log subscriber:', error);
+      }
+    });
+  }
 
   async log(level: LogEntry['level'], message: string, details?: any, endpoint?: string) {
     const entry: LogEntry = {
@@ -23,6 +42,9 @@ class Logger {
 
     // Console log for Vercel logs
     console.log(`[${level.toUpperCase()}] ${message}`, details || '');
+
+    // Notify real-time subscribers
+    this.notifySubscribers(entry);
 
     try {
       // Get existing logs

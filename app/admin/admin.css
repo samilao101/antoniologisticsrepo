@@ -40,6 +40,23 @@
   color: #333;
 }
 
+.view-logs-btn {
+  background: #9b59b6;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-size: 0.9em;
+  font-weight: 500;
+  text-decoration: none;
+  transition: all 0.2s ease;
+}
+
+.view-logs-btn:hover {
+  background: #8e44ad;
+  transform: translateY(-1px);
+}
+
 .view-live-btn {
   background: #667eea;
   color: white;

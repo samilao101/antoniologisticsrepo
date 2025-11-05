@@ -125,6 +125,9 @@ export default function AdminPage() {
                 🔄 Updating...
               </span>
             )}
+            <a href="/admin/logs" target="_blank" className="view-logs-btn">
+              📊 Logs
+            </a>
             <a href="/" target="_blank" className="view-live-btn">
               View Live Site →
             </a>
