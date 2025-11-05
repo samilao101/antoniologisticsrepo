@@ -175,15 +175,15 @@ export default function ChatPanel({ onSiteUpdate }: ChatPanelProps) {
       <div className="chat-header">
         <div className="header-content">
           <h3>🤖 AI Website Builder</h3>
-          <p className="header-subtitle">Chat or speak to create and modify your site</p>
+          <p className="header-subtitle">Chat to create and modify your site</p>
         </div>
         <div className="chat-actions">
-          <VoiceButton
+          {/* <VoiceButton
             sessionId={sessionId}
             currentHtml={currentHtml}
             onSiteUpdate={handleVoiceSiteUpdate}
             onTranscript={handleVoiceTranscript}
-          />
+          /> */}
           <button onClick={clearConversation} className="clear-btn" title="Clear chat">
             🗑️ Clear
           </button>
