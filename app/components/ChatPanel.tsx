@@ -5,9 +5,10 @@ import VoiceButton from './VoiceButton';
 import './ChatPanel.css';
 
 interface Message {
-  role: 'user' | 'assistant';
+  role: 'user' | 'assistant' | 'system';
   content: string;
   timestamp: string;
+  isUpdate?: boolean; // Flag for site update notifications
 }
 
 interface ChatPanelProps {
@@ -82,6 +83,15 @@ export default function ChatPanel({ onSiteUpdate }: ChatPanelProps) {
   const handleVoiceSiteUpdate = (htmlContent?: string) => {
     if (htmlContent) {
       setCurrentHtml(htmlContent);
+
+      // Add system notification to chat
+      const updateNotification: Message = {
+        role: 'system',
+        content: '✨ Website updated successfully!',
+        timestamp: new Date().toISOString(),
+        isUpdate: true,
+      };
+      setMessages((prev) => [...prev, updateNotification]);
     }
     onSiteUpdate(htmlContent);
   };
@@ -125,9 +135,19 @@ export default function ChatPanel({ onSiteUpdate }: ChatPanelProps) {
 
       // Refresh site if HTML was updated
       if (data.htmlUpdated) {
+        // Add system notification to chat
+        const updateNotification: Message = {
+          role: 'system',
+          content: '✨ Website updated successfully!',
+          timestamp: new Date().toISOString(),
+          isUpdate: true,
+        };
+        setMessages((prev) => [...prev, updateNotification]);
+
         // If we got the HTML in the response, update immediately
         // Otherwise fall back to fetching (with small delay for KV propagation)
         if (data.htmlContent) {
+          setCurrentHtml(data.htmlContent);
           onSiteUpdate(data.htmlContent); // Immediate update with returned HTML
         } else {
           setTimeout(() => onSiteUpdate(), 1000); // Increased to 1 second for KV propagation
@@ -214,17 +234,35 @@ export default function ChatPanel({ onSiteUpdate }: ChatPanelProps) {
           </div>
         )}
 
-        {messages.map((msg, index) => (
-          <div key={index} className={`message ${msg.role}`}>
-            <div className="message-avatar">{msg.role === 'user' ? '👤' : '🤖'}</div>
-            <div className="message-content">
-              <div className="message-text">{msg.content}</div>
-              <div className="message-time">
-                {new Date(msg.timestamp).toLocaleTimeString()}
+        {messages.map((msg, index) => {
+          // Render system update notifications differently
+          if (msg.role === 'system' && msg.isUpdate) {
+            return (
+              <div key={index} className="update-notification">
+                <div className="update-icon">🎉</div>
+                <div className="update-content">
+                  <div className="update-text">{msg.content}</div>
+                  <div className="update-time">
+                    {new Date(msg.timestamp).toLocaleTimeString()}
+                  </div>
+                </div>
+              </div>
+            );
+          }
+
+          // Regular user/assistant messages
+          return (
+            <div key={index} className={`message ${msg.role}`}>
+              <div className="message-avatar">{msg.role === 'user' ? '👤' : '🤖'}</div>
+              <div className="message-content">
+                <div className="message-text">{msg.content}</div>
+                <div className="message-time">
+                  {new Date(msg.timestamp).toLocaleTimeString()}
+                </div>
               </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
 
         {isLoading && (
           <div className="message assistant">
