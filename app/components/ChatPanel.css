@@ -186,6 +186,68 @@
   padding-left: 4px;
 }
 
+/* Site Changed Card */
+.site-changed-card {
+  display: flex;
+  gap: 12px;
+  margin: 20px 0;
+  padding: 16px;
+  background: linear-gradient(135deg, #667eea15 0%, #764ba215 100%);
+  border: 2px solid #667eea;
+  border-radius: 12px;
+  animation: fadeIn 0.3s ease, pulse 0.5s ease;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.02);
+  }
+}
+
+.site-changed-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+  flex-shrink: 0;
+  box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+}
+
+.site-changed-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.site-changed-title {
+  font-weight: 600;
+  font-size: 0.95em;
+  color: #667eea;
+  letter-spacing: 0.3px;
+}
+
+.site-changed-description {
+  font-size: 0.9em;
+  color: #555;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+}
+
+.site-changed-time {
+  font-size: 0.75em;
+  color: #999;
+  margin-top: 2px;
+}
+
 /* Typing Indicator */
 .typing-indicator {
   display: flex;

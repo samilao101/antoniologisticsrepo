@@ -14,6 +14,10 @@ interface Message {
   role: 'user' | 'assistant' | 'system';
   content: string;
   timestamp: string;
+  type?: 'chat' | 'site_changed';
+  metadata?: {
+    description?: string;
+  };
 }
 
 // Simplified agent - uses OpenAI function calling instead of Swarm
@@ -187,9 +191,6 @@ export async function POST(request: NextRequest) {
     };
     conversation.push(assistantMessage);
 
-    // Save conversation to KV
-    await kv.set(conversationKey, conversation);
-
     // Save HTML if updated
     if (updatedHtml) {
       await logger.info('Saving updated HTML to KV', { htmlLength: updatedHtml.length }, '/api/chat');
@@ -197,7 +198,22 @@ export async function POST(request: NextRequest) {
       await kv.set('site:lastUpdated', new Date().toISOString());
       await kv.set('site:lastDescription', assistantMessage.content);
       await logger.info('HTML saved successfully', {}, '/api/chat');
+
+      // Add a site changed notification message
+      const siteChangedMessage: Message = {
+        role: 'system',
+        content: 'Site updated successfully',
+        timestamp: new Date().toISOString(),
+        type: 'site_changed',
+        metadata: {
+          description: assistantMessage.content,
+        },
+      };
+      conversation.push(siteChangedMessage);
     }
+
+    // Save conversation to KV (after potentially adding site_changed message)
+    await kv.set(conversationKey, conversation);
 
     await logger.info('Chat request completed successfully', { htmlUpdated: !!updatedHtml }, '/api/chat');
 

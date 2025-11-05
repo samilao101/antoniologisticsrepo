@@ -5,9 +5,13 @@ import VoiceButton from './VoiceButton';
 import './ChatPanel.css';
 
 interface Message {
-  role: 'user' | 'assistant';
+  role: 'user' | 'assistant' | 'system';
   content: string;
   timestamp: string;
+  type?: 'chat' | 'site_changed';
+  metadata?: {
+    description?: string;
+  };
 }
 
 interface ChatPanelProps {
@@ -214,17 +218,38 @@ export default function ChatPanel({ onSiteUpdate }: ChatPanelProps) {
           </div>
         )}
 
-        {messages.map((msg, index) => (
-          <div key={index} className={`message ${msg.role}`}>
-            <div className="message-avatar">{msg.role === 'user' ? '👤' : '🤖'}</div>
-            <div className="message-content">
-              <div className="message-text">{msg.content}</div>
-              <div className="message-time">
-                {new Date(msg.timestamp).toLocaleTimeString()}
+        {messages.map((msg, index) => {
+          // Render special site changed card
+          if (msg.type === 'site_changed') {
+            return (
+              <div key={index} className="site-changed-card">
+                <div className="site-changed-icon">✨</div>
+                <div className="site-changed-content">
+                  <div className="site-changed-title">Site Updated</div>
+                  <div className="site-changed-description">
+                    {msg.metadata?.description || msg.content}
+                  </div>
+                  <div className="site-changed-time">
+                    {new Date(msg.timestamp).toLocaleTimeString()}
+                  </div>
+                </div>
+              </div>
+            );
+          }
+
+          // Render regular chat message
+          return (
+            <div key={index} className={`message ${msg.role}`}>
+              <div className="message-avatar">{msg.role === 'user' ? '👤' : '🤖'}</div>
+              <div className="message-content">
+                <div className="message-text">{msg.content}</div>
+                <div className="message-time">
+                  {new Date(msg.timestamp).toLocaleTimeString()}
+                </div>
               </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
 
         {isLoading && (
           <div className="message assistant">
